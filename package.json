@@ -1,0 +1,38 @@
+{
+  "name": "cordova-plugin-ios-video-capture",
+  "version": "0.1.0",
+  "description": "Cordova plugin for iOS video capture using modern Swift and AVFoundation",
+  "cordova": {
+    "id": "cordova-plugin-ios-video-capture",
+    "platforms": [
+      "ios"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/cordova-plugin-ios-video-capture.git"
+  },
+  "keywords": [
+    "cordova",
+    "ios",
+    "video",
+    "capture",
+    "swift",
+    "avfoundation",
+    "ecosystem:cordova",
+    "cordova-ios"
+  ],
+  "engines": {
+    "cordovaDependencies": {
+      "0.1.0": {
+        "cordova-ios": ">=6.0.0"
+      }
+    }
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/cordova-plugin-ios-video-capture/issues"
+  },
+  "homepage": "https://github.com/yourusername/cordova-plugin-ios-video-capture#readme"
+}

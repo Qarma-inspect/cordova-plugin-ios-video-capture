@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        id="cordova-plugin-ios-video-capture"
+        version="0.1.0">
+    <name>iOS Video Capture</name>
+    <description>Cordova plugin for iOS video capture using modern Swift and AVFoundation</description>
+    <license>MIT</license>
+    <keywords>cordova,ios,video,capture,swift,avfoundation</keywords>
+    
+    <js-module src="www/iosVideoCapture.js" name="iOSVideoCapture">
+        <clobbers target="cordova.plugins.iOSVideoCapture" />
+    </js-module>
+    
+    <platform name="ios">
+        <config-file target="config.xml" parent="/*">
+            <feature name="iOSVideoCapture">
+                <param name="ios-package" value="CDViOSVideoCapture" />
+            </feature>
+        </config-file>
+        
+        <source-file src="src/ios/CDViOSVideoCapture.swift" />
+        
+        <config-file target="*-Info.plist" parent="NSCameraUsageDescription">
+            <string>This app requires access to your camera for video recording.</string>
+        </config-file>
+        <config-file target="*-Info.plist" parent="NSMicrophoneUsageDescription">
+            <string>This app requires access to your microphone for video recording.</string>
+        </config-file>
+        
+        <framework src="AVFoundation.framework" />
+        
+        <preference name="SWIFT_VERSION" value="5" />
+    </platform>
+</plugin>
