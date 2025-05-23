@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/cordova-plugin-ios-video-capture.git"
+    "url": "git+https://github.com/Qarma-inspect/cordova-plugin-ios-video-capture.git"
   },
   "keywords": [
     "cordova",
@@ -23,16 +23,15 @@
     "cordova-ios"
   ],
   "engines": {
-    "cordovaDependencies": {
-      "0.1.0": {
-        "cordova-ios": ">=6.0.0"
-      }
-    }
+    "node": ">=10.0.0"
   },
-  "author": "",
+  "cordovaDependencies": {
+    "0.1.0": { "cordova-ios": "^6.0.0" }
+  },
+  "author": "Your Name",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yourusername/cordova-plugin-ios-video-capture/issues"
+    "url": "https://github.com/Qarma-inspect/cordova-plugin-ios-video-capture/issues"
   },
-  "homepage": "https://github.com/yourusername/cordova-plugin-ios-video-capture#readme"
+  "homepage": "https://github.com/Qarma-inspect/cordova-plugin-ios-video-capture#readme"
 }

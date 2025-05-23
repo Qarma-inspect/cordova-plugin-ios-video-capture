@@ -5,12 +5,21 @@ import MobileCoreServices
 
 @objc(CDViOSVideoCapture)
 class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
+    // Capture components
     private var captureSession: AVCaptureSession?
     private var videoDeviceInput: AVCaptureDeviceInput?
     private var movieFileOutput: AVCaptureMovieFileOutput?
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var recordingCommand: CDVInvokedUrlCommand?
     private var previewView: UIView?
+    
+    // UI Elements
+    private var timerLabel: UILabel?
+    private var stopButton: UIButton?
+    
+    // Recording timer
+    private var recordingTimer: Timer?
+    private var elapsedTime: TimeInterval = 0
     
     override func pluginInitialize() {
         super.pluginInitialize()
@@ -21,8 +30,14 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         
         // Extract maxDuration parameter
         var maxDuration: Double = 60 // Default to 60 seconds if not specified
-        if command.arguments.count > 0, let duration = command.arguments[0] as? Double {
-            maxDuration = duration
+        if command.arguments.count > 0 {
+            if let durationArg = command.arguments[0] as? [String: Any], 
+               let duration = durationArg["maxDuration"] as? Double {
+                maxDuration = duration
+            } else if let duration = command.arguments[0] as? Double {
+                // For backward compatibility
+                maxDuration = duration
+            }
         }
         
         DispatchQueue.main.async { [weak self] in
@@ -102,10 +117,81 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             if let previewLayer = previewLayer {
                 previewView.layer.addSublayer(previewLayer)
             }
+            
+            // Add timer label
+            setupTimerLabel(in: previewView)
+            
+            // Add stop button
+            setupStopButton(in: previewView)
         }
         
         // Start the session
         captureSession.startRunning()
+    }
+    
+    private func setupTimerLabel(in view: UIView) {
+        timerLabel = UILabel()
+        guard let timerLabel = timerLabel else { return }
+        
+        timerLabel.translatesAutoresizingMaskIntoConstraints = false
+        timerLabel.text = "00:00"
+        timerLabel.textColor = .white
+        timerLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 18, weight: .medium)
+        timerLabel.textAlignment = .center
+        timerLabel.backgroundColor = UIColor(white: 0, alpha: 0.5)
+        timerLabel.layer.cornerRadius = 8
+        timerLabel.layer.masksToBounds = true
+        
+        view.addSubview(timerLabel)
+        
+        NSLayoutConstraint.activate([
+            timerLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            timerLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            timerLabel.widthAnchor.constraint(equalToConstant: 80),
+            timerLabel.heightAnchor.constraint(equalToConstant: 40)
+        ])
+    }
+    
+    private func setupStopButton(in view: UIView) {
+        stopButton = UIButton(type: .custom)
+        guard let stopButton = stopButton else { return }
+        
+        stopButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Create a square stop icon instead of text
+        let iconSize: CGFloat = 20
+        let iconView = UIView(frame: CGRect(x: 0, y: 0, width: iconSize, height: iconSize))
+        iconView.backgroundColor = .white
+        iconView.layer.cornerRadius = 2
+        
+        // Center the icon in the button
+        stopButton.addSubview(iconView)
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            iconView.centerXAnchor.constraint(equalTo: stopButton.centerXAnchor),
+            iconView.centerYAnchor.constraint(equalTo: stopButton.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: iconSize),
+            iconView.heightAnchor.constraint(equalToConstant: iconSize)
+        ])
+        
+        stopButton.backgroundColor = UIColor.red
+        stopButton.layer.cornerRadius = 30
+        stopButton.addTarget(self, action: #selector(stopButtonTapped), for: .touchUpInside)
+        
+        view.addSubview(stopButton)
+        
+        NSLayoutConstraint.activate([
+            stopButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -40),
+            stopButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stopButton.widthAnchor.constraint(equalToConstant: 60),
+            stopButton.heightAnchor.constraint(equalToConstant: 60)
+        ])
+    }
+    
+    @objc private func stopButtonTapped() {
+        if movieFileOutput?.isRecording == true {
+            movieFileOutput?.stopRecording()
+        }
     }
     
     private func startRecordingVideo(maxDuration: Double) {
@@ -124,6 +210,10 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         let tempFilePath = (tempDir as NSString).appendingPathComponent(tempFileName)
         let fileURL = URL(fileURLWithPath: tempFilePath)
         
+        // Reset and start timer
+        elapsedTime = 0
+        startRecordingTimer()
+        
         // Start recording
         movieFileOutput.startRecording(to: fileURL, recordingDelegate: self)
     }
@@ -132,14 +222,30 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     
     func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         // Recording started
+        // Timer is already started in startRecordingVideo
     }
     
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         // Clean up the capture session
         cleanupCaptureSession()
         
+        // Check if error is related to reaching max duration
+        // When maxDuration is reached, AVFoundation still provides a valid recording
+        // but also returns an error of AVError.Code -11810 (maxDuration reached)
+        
         if let error = error {
-            sendPluginError("Recording failed: \(error.localizedDescription)")
+            let nsError = error as NSError
+            // AVFoundation returns error code 11810 when reaching max duration
+            // We'll still process the file in this case
+            if nsError.code != -11810 {
+                sendPluginError("Recording failed: \(error.localizedDescription)")
+                return
+            }
+        }
+        
+        // Only process if we have a valid file
+        guard FileManager.default.fileExists(atPath: outputFileURL.path) else {
+            sendPluginError("Recording failed: Output file not found")
             return
         }
         
@@ -177,6 +283,9 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     }
     
     private func cleanupCaptureSession() {
+        // Stop the recording timer
+        stopRecordingTimer()
+        
         captureSession?.stopRunning()
         
         // Remove preview layer and view
@@ -189,6 +298,8 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         movieFileOutput = nil
         previewLayer = nil
         previewView = nil
+        timerLabel = nil
+        stopButton = nil
     }
     
     private func sendPluginError(_ message: String) {
@@ -198,5 +309,35 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         }
         
         cleanupCaptureSession()
+    }
+}
+
+// MARK: - Timer Management
+extension CDViOSVideoCapture {
+    private func startRecordingTimer() {
+        // Stop any existing timer
+        stopRecordingTimer()
+        
+        // Create and start a new timer
+        recordingTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(updateTimer), userInfo: nil, repeats: true)
+    }
+    
+    private func stopRecordingTimer() {
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+    }
+    
+    @objc private func updateTimer() {
+        elapsedTime += 0.1
+        
+        // Format time as MM:SS
+        let minutes = Int(elapsedTime) / 60
+        let seconds = Int(elapsedTime) % 60
+        let timeString = String(format: "%02d:%02d", minutes, seconds)
+        
+        // Update timer label on main thread
+        DispatchQueue.main.async { [weak self] in
+            self?.timerLabel?.text = timeString
+        }
     }
 }

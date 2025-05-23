@@ -9,22 +9,14 @@ var iOSVideoCapture = {
     /**
      * Start recording a video with specified maximum duration
      * @param {number} maxDuration - Maximum duration in seconds
-     * @returns {Promise<MediaFile>} - Promise resolving to a MediaFile object or rejecting with an error
+     * @param {Function} successCallback - Callback function to be called when video recording is successful
+     * @param {Function} errorCallback - Callback function to be called when video recording fails
      */
-    startRecord: function(maxDuration) {
-        return new Promise(function(resolve, reject) {
-            exec(
-                function(mediaFile) {
-                    resolve(mediaFile);
-                },
-                function(error) {
-                    reject(error);
-                },
-                'iOSVideoCapture',
-                'startRecord',
-                [maxDuration]
-            );
-        });
+    startRecord: function(maxDuration, successCallback, errorCallback) {
+        var win = function(mediaFile) {
+            successCallback(mediaFile);
+        };
+        exec(win, errorCallback, 'iOSVideoCapture', 'startRecord', [{maxDuration: maxDuration}]);
     }
 };
 
