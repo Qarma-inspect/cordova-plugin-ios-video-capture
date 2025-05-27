@@ -20,7 +20,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     private var previewContainerView: UIView?
     private var previewWebElement: WKWebView?
     private var elementRect: CGRect = .zero
-    private var previewAspectRatio: CGFloat = 3.0/4.0 // Default aspect ratio is 3:4 (portrait mode)
+    private var previewAspectRatio: CGFloat = 9.0/16.0 // Default aspect ratio is 3:4 (portrait mode)
     
     // UI Elements
     private var timerLabel: UILabel?
@@ -29,7 +29,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     // Recording state
     private var isRecording: Bool = false
     private var outputFileURL: URL?
-    private var maxRecordDuration: Double = 60
+    private var maxRecordDuration: Double = 12
     
     // Recording timer
     private var recordingTimer: Timer?
@@ -52,21 +52,23 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             let containerWidth = previewContainerView.bounds.width
             let containerHeight = previewContainerView.bounds.height
             
-            // Calculate frame based on aspect ratio
+            // For portrait mode, we want to fill the width and position closer to the bottom controls
             var previewFrame = previewContainerView.bounds
-            let containerRatio = containerWidth / containerHeight
             
-            if self.previewAspectRatio > containerRatio {
-                // Preview is wider than container, adjust height
-                let newHeight = containerWidth / self.previewAspectRatio
-                let yOffset = (containerHeight - newHeight) / 2
-                previewFrame = CGRect(x: 0, y: yOffset, width: containerWidth, height: newHeight)
-            } else {
-                // Preview is taller than container, adjust width
-                let newWidth = containerHeight * self.previewAspectRatio
-                let xOffset = (containerWidth - newWidth) / 2
-                previewFrame = CGRect(x: xOffset, y: 0, width: newWidth, height: containerHeight)
-            }
+            // Calculate the height needed to maintain our aspect ratio while filling the width
+            let previewHeight = containerWidth / self.previewAspectRatio
+            
+            // Position the preview lower in the container, closer to the controls
+            // Instead of centering (which would be containerHeight - previewHeight) / 2,
+            // we'll position it about 65% down from the top
+            let availableSpace = containerHeight - previewHeight
+            let yOffset = max(0, availableSpace * 0.2) // Position at 20% from the top instead of 50%
+            
+            // Set the frame with adjusted vertical position and full width
+            previewFrame = CGRect(x: 0, y: yOffset, width: containerWidth, height: previewHeight)
+            
+            // Use resizeAspectFill to ensure the width is fully filled
+            previewLayer.videoGravity = .resizeAspectFill
             
             // Always maintain portrait orientation for the preview layer
             previewLayer.connection?.videoOrientation = .portrait
@@ -303,6 +305,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         // Create a container view that will hold our preview
         let containerView = UIView(frame: elementRect)
         containerView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        containerView.backgroundColor = .clear
         webView.superview?.addSubview(containerView)
         self.previewContainerView = containerView
         
@@ -317,22 +320,22 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         let containerWidth = containerView.bounds.width
         let containerHeight = containerView.bounds.height
         
-        // Calculate frame based on aspect ratio
+        // For portrait mode, we want to fill the width and position closer to the bottom controls
         var previewFrame = containerView.bounds
-        let containerRatio = containerWidth / containerHeight
         
-        if self.previewAspectRatio > containerRatio {
-            // Preview is wider than container, adjust height
-            let newHeight = containerWidth / self.previewAspectRatio
-            let yOffset = (containerHeight - newHeight) / 2
-            previewFrame = CGRect(x: 0, y: yOffset, width: containerWidth, height: newHeight)
-        } else {
-            // Preview is taller than container, adjust width
-            let newWidth = containerHeight * self.previewAspectRatio
-            let xOffset = (containerWidth - newWidth) / 2
-            previewFrame = CGRect(x: xOffset, y: 0, width: newWidth, height: containerHeight)
-        }
+        // Calculate the height needed to maintain our aspect ratio while filling the width
+        let previewHeight = containerWidth / self.previewAspectRatio
         
+        // Position the preview lower in the container, closer to the controls
+        // Instead of centering (which would be containerHeight - previewHeight) / 2,
+        // we'll position it about 65% down from the top
+        let availableSpace = containerHeight - previewHeight
+        let yOffset = max(0, availableSpace * 0.2) // Position at 20% from the top instead of 50%
+        
+        // Set the frame with adjusted vertical position and full width
+        previewFrame = CGRect(x: 0, y: yOffset, width: containerWidth, height: previewHeight)
+        
+        // Use resizeAspectFill to ensure the width is fully filled
         previewLayer.videoGravity = .resizeAspectFill
         previewLayer.frame = previewFrame
         containerView.layer.addSublayer(previewLayer)

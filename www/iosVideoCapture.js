@@ -18,7 +18,7 @@ var iOSVideoCapture = {
         options = options || {};
         // Default aspect ratio is 4:3 if not specified
         if (typeof options.ratio === 'undefined') {
-            options.ratio = 4/3;
+            options.ratio = 9/16;
         }
         var params = {
             elementId: elementId,
