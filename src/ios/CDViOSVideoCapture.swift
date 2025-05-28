@@ -426,27 +426,6 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     
     func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         NSLog("Recording started successfully")
-        
-        // Fire a JavaScript event with the file path
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            // Prepare the JavaScript to fire a document event
-            let filePath = fileURL.path
-            let jsEvent = "cordova.fireDocumentEvent('videoRecorderUpdate', {filePath: '" + filePath + "'}, true);"
-            
-            // Execute the JavaScript
-            if let webView = self.webView as? WKWebView {
-                webView.evaluateJavaScript(jsEvent, completionHandler: { (result, error) in
-                    if let error = error {
-                        NSLog("Error firing JS event: \(error.localizedDescription)")
-                    }
-                })
-            } else {
-                // Fallback to Cordova's command delegate
-                self.commandDelegate?.evalJs(jsEvent)
-            }
-        }
     }
     
     // Required method for iOS 11+ to determine if audio should be recorded
