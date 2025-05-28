@@ -466,7 +466,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             
             // Prepare the JavaScript to fire a document event
             let filePath = outputFileURL.path
-            let jsEvent = "cordova.fireDocumentEvent('videoRecorderFinished', {filePath: '" + filePath + "'}, true);"
+            let jsEvent = "cordova.fireDocumentEvent('videoRecorderUpdate', {filePath: '" + filePath + "'}, true);"
             
             // Execute the JavaScript
             if let webView = self.webView as? WKWebView {
