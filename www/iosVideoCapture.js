@@ -35,7 +35,7 @@ var iOSVideoCapture = {
      */
     startRecording: function(maxDuration, successCallback, errorCallback) {
         var params = {
-            maxDuration: maxDuration || 60
+            maxDuration: maxDuration || 12
         };
         exec(successCallback, errorCallback, 'iOSVideoCapture', 'startRecording', [params]);
     },
@@ -47,14 +47,14 @@ var iOSVideoCapture = {
      */
     stopRecording: function(successCallback, errorCallback) {
         exec(function(mediaFile) {
-            successCallback(mediaFile);
+            successCallback(mediaFile.fullPath);
         }, errorCallback, 'iOSVideoCapture', 'stopRecording', []);
     },
     
     /**
      * Stop the camera preview and release resources
      * @param {Function} successCallback - Success callback
-     * @param {Function} errorCallback - Error callback
+     * @param {Function} errorCallback - Error callback 
      */
     stopPreview: function(successCallback, errorCallback) {
         exec(successCallback, errorCallback, 'iOSVideoCapture', 'stopPreview', []);

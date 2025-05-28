@@ -325,7 +325,29 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
                 return
             }
             
-            // Apply session configuration for recording
+            // Fix for error -11803: Add a small delay to ensure the session is fully running
+//            Thread.sleep(forTimeInterval: 0.5)
+            
+            // Create temp file for recording
+            let tempDir = NSTemporaryDirectory()
+            let tempFileName = "video_\(Int(Date().timeIntervalSince1970)).mp4"
+            let tempFilePath = (tempDir as NSString).appendingPathComponent(tempFileName)
+            let fileURL = URL(fileURLWithPath: tempFilePath)
+            
+            // Make sure the directory exists
+            let fileManager = FileManager.default
+            if !fileManager.fileExists(atPath: tempDir) {
+                do {
+                    try fileManager.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
+                } catch {
+                    DispatchQueue.main.async {
+                        self.sendPluginError("Failed to create temp directory")
+                    }
+                    return
+                }
+            }
+            
+            // Fix for error -11803: Apply changes in a locked configuration block
             captureSession.beginConfiguration()
             
             // Set max duration
@@ -344,20 +366,22 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             
             captureSession.commitConfiguration()
             
-            // Create temp file for recording
-            let tempDir = NSTemporaryDirectory()
-            let tempFileName = "video_\(Int(Date().timeIntervalSince1970)).mp4"
-            let tempFilePath = (tempDir as NSString).appendingPathComponent(tempFileName)
-            let fileURL = URL(fileURLWithPath: tempFilePath)
+            // Store the output file URL
             self.outputFileURL = fileURL
             
             // Set recording flag
             self.isRecording = true
             
-            // Start recording on the main thread
-            DispatchQueue.main.async {
+            // Fix for error -11803: Use runAsynchronouslyOnSessionQueue to ensure proper thread handling
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
                 NSLog("Starting video recording to: \(fileURL.path)")
-                movieFileOutput.startRecording(to: fileURL, recordingDelegate: self)
+                
+                // Wait for a slight delay to ensure everything is ready
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    guard let self = self, self.isRecording else { return }
+                    movieFileOutput.startRecording(to: fileURL, recordingDelegate: self)
+                }
             }
         }
     }
@@ -402,6 +426,27 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     
     func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         NSLog("Recording started successfully")
+        
+        // Fire a JavaScript event with the file path
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Prepare the JavaScript to fire a document event
+            let filePath = fileURL.path
+            let jsEvent = "cordova.fireDocumentEvent('videoRecorderUpdate', {filePath: '" + filePath + "'}, true);"
+            
+            // Execute the JavaScript
+            if let webView = self.webView as? WKWebView {
+                webView.evaluateJavaScript(jsEvent, completionHandler: { (result, error) in
+                    if let error = error {
+                        NSLog("Error firing JS event: \(error.localizedDescription)")
+                    }
+                })
+            } else {
+                // Fallback to Cordova's command delegate
+                self.commandDelegate?.evalJs(jsEvent)
+            }
+        }
     }
     
     // Required method for iOS 11+ to determine if audio should be recorded
@@ -434,6 +479,27 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         guard FileManager.default.fileExists(atPath: outputFileURL.path) else {
             sendPluginError("Recording failed: Output file not found")
             return
+        }
+        
+        // Fire a JavaScript event with the file path when recording finishes
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Prepare the JavaScript to fire a document event
+            let filePath = outputFileURL.path
+            let jsEvent = "cordova.fireDocumentEvent('videoRecorderFinished', {filePath: '" + filePath + "'}, true);"
+            
+            // Execute the JavaScript
+            if let webView = self.webView as? WKWebView {
+                webView.evaluateJavaScript(jsEvent, completionHandler: { (result, error) in
+                    if let error = error {
+                        NSLog("Error firing JS event: \(error.localizedDescription)")
+                    }
+                })
+            } else {
+                // Fallback to Cordova's command delegate
+                self.commandDelegate?.evalJs(jsEvent)
+            }
         }
         
         // Process the recorded video
