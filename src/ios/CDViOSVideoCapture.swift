@@ -276,21 +276,19 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
                 guard let self = self, let positionString = result as? String else { return }
                 
                 // Parse the result string which should be in format "x,y,width,height"
-                let components = positionString.components(separatedBy: ",")
+                let components = positionString.split(separator: ",").map(String.init)
                 if components.count == 4,
-                   let xStr = components[safe: 0], let x = Double(xStr),
-                   let yStr = components[safe: 1], let y = Double(yStr),
-                   let widthStr = components[safe: 2], let width = Double(widthStr),
-                   let heightStr = components[safe: 3], let height = Double(heightStr),
+                   let x = Double(components[0]),
+                   let y = Double(components[1]),
+                   let width = Double(components[2]),
+                   let height = Double(components[3]),
                    x >= 0, y >= 0, width > 0, height > 0 {
-                    
-                    // We have valid dimensions, update the preview position
+
+                    // Valid element frame; proceed
                     DispatchQueue.main.async {
-                        // Position the preview view over the HTML element
                         let elementFrame = CGRect(x: x, y: y, width: width, height: height)
                         self.previewView?.frame = webViewAsUIView.convert(elementFrame, to: parentView)
-                        
-                        // Update preview layer frame to fill the view
+
                         if let previewView = self.previewView, let previewLayer = self.previewLayer {
                             previewLayer.frame = previewView.bounds
                         }
@@ -298,14 +296,8 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
                 } else {
                     NSLog("Could not find valid position for element ID: \(elementId), using fullscreen")
                 }
+
             }
-        }
-    }
-    
-    // Extension to safely access array elements
-    private extension Array {
-        subscript(safe index: Index) -> Element? {
-            return indices.contains(index) ? self[index] : nil
         }
     }
     
@@ -316,7 +308,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             guard let self = self else { return }
             
             // Ensure session is running
-            guard let captureSession = self.captureSession, 
+            guard let captureSession = self.captureSession,
                   captureSession.isRunning,
                   let movieFileOutput = self.movieFileOutput else {
                 DispatchQueue.main.async {
