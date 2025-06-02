@@ -164,59 +164,6 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         self.commandDelegate.send(pluginResult, callbackId: command.callbackId)
     }
     
-    @objc func setZoomRatio(_ command: CDVInvokedUrlCommand) {
-        // Check if a valid ratio parameter is provided
-        guard command.arguments.count > 0,
-              let zoomRatio = command.arguments[0] as? CGFloat,
-              zoomRatio >= 1.0 else {
-            sendPluginError("Invalid zoom ratio parameter. Must be a number >= 1.0", for: command)
-            return
-        }
-        
-        // Check if capture session is running
-        guard let videoDevice = self.videoDeviceInput?.device,
-              captureSession != nil,
-              captureSession!.isRunning else {
-            sendPluginError("Camera preview not started. Call startPreview first.", for: command)
-            return
-        }
-        
-        // Set zoom on session queue
-        sessionQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            do {
-                try videoDevice.lockForConfiguration()
-                
-                // Get the available zoom range
-                let minAvailableZoom: CGFloat = 1.0
-                let maxAvailableZoom = min(videoDevice.activeFormat.videoMaxZoomFactor, 6.0)
-                
-                // Limit the zoom factor to the available range
-                let finalZoom = min(maxAvailableZoom, max(minAvailableZoom, zoomRatio))
-                
-                // Apply the zoom factor to the device with smooth transition
-                videoDevice.videoZoomFactor = finalZoom
-                
-                // Store the current zoom factor for future reference
-                self.currentZoomFactor = finalZoom
-                self.initialPinchZoom = finalZoom
-                
-                videoDevice.unlockForConfiguration()
-                
-                // Send success response
-                DispatchQueue.main.async {
-                    let pluginResult = CDVPluginResult(status: .ok, messageAs: ["zoomRatio": finalZoom])
-                    self.commandDelegate.send(pluginResult, callbackId: command.callbackId)
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.sendPluginError("Error setting zoom: \(error.localizedDescription)", for: command)
-                }
-            }
-        }
-    }
-    
     // MARK: - Camera Setup
     
     private func setupCaptureSession() throws {
