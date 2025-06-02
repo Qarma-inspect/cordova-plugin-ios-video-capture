@@ -26,6 +26,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     private var isRecording: Bool = false
     private var outputFileURL: URL?
     private var maxRecordDuration: Double = 60 // Default to 60 seconds
+    private var targetFileName: String? // Custom filename for the recorded video
     
     // Session queue for camera operations
     private let sessionQueue = DispatchQueue(label: "com.cordova.iosVideoCapture.sessionQueue", qos: .userInitiated)
@@ -94,13 +95,24 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         // Store the command for later use
         self.recordingCommand = command
         
-        // Extract maxDuration parameter
+        // Extract parameters
         var maxDuration: Double = 60 // Default to 60 seconds if not specified
-        if command.arguments.count > 0, let params = command.arguments[0] as? [String: Any],
-           let duration = params["maxDuration"] as? Double {
-            maxDuration = duration
+        var targetFileName: String? = nil
+        
+        if command.arguments.count > 0, let params = command.arguments[0] as? [String: Any] {
+            // Extract maxDuration if provided
+            if let duration = params["maxDuration"] as? Double {
+                maxDuration = duration
+            }
+            
+            // Extract targetFileName if provided
+            if let fileName = params["targetFileName"] as? String {
+                targetFileName = fileName
+            }
         }
+        
         self.maxRecordDuration = maxDuration
+        self.targetFileName = targetFileName
         
         // Check if capture session is set up
         guard captureSession != nil, captureSession!.isRunning else {
@@ -330,7 +342,17 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             
             // Create temp file for recording
             let tempDir = NSTemporaryDirectory()
-            let tempFileName = "video_\(Int(Date().timeIntervalSince1970)).mp4"
+            
+            // Use custom filename if provided, otherwise use timestamp-based filename
+            let tempFileName: String
+            if let targetName = self.targetFileName, !targetName.isEmpty {
+                // Sanitize the filename to ensure it's valid
+                let sanitizedName = targetName.replacingOccurrences(of: "[^a-zA-Z0-9_-]", with: "_", options: .regularExpression)
+                tempFileName = "\(sanitizedName).mp4"
+            } else {
+                tempFileName = "video_\(Int(Date().timeIntervalSince1970)).mp4"
+            }
+            
             let tempFilePath = (tempDir as NSString).appendingPathComponent(tempFileName)
             let fileURL = URL(fileURLWithPath: tempFilePath)
             

@@ -28,15 +28,28 @@ var iOSVideoCapture = {
     },
     
     /**
-     * Start recording a video with specified maximum duration
-     * @param {number} maxDuration - Maximum duration in seconds
+     * Start recording a video with specified options
+     * @param {Object} options - Recording options
+     * @param {number} [options.maxDuration=12] - Maximum duration in seconds
+     * @param {string} [options.targetFileName] - Desired filename for the recorded video (without extension)
      * @param {Function} successCallback - Callback function to be called when video recording starts
      * @param {Function} errorCallback - Error callback
      */
-    startRecording: function(maxDuration, successCallback, errorCallback) {
-        var params = {
-            maxDuration: maxDuration || 12
-        };
+    startRecording: function(options, successCallback, errorCallback) {
+        // Handle backwards compatibility with older API which took maxDuration directly
+        var params = {};
+        if (typeof options === 'number') {
+            params.maxDuration = options || 12;
+        } else if (typeof options === 'object') {
+            params = options;
+            // Set default maxDuration if not provided
+            if (typeof params.maxDuration === 'undefined') {
+                params.maxDuration = 12;
+            }
+        } else {
+            params.maxDuration = 12;
+        }
+        
         exec(successCallback, errorCallback, 'iOSVideoCapture', 'startRecording', [params]);
     },
     
