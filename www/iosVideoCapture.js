@@ -71,6 +71,23 @@ var iOSVideoCapture = {
      */
     stopPreview: function(successCallback, errorCallback) {
         exec(successCallback, errorCallback, 'iOSVideoCapture', 'stopPreview', []);
+    },
+    
+    /**
+     * Set the camera zoom ratio
+     * @param {number} ratio - Zoom ratio (1.0 is no zoom, greater values zoom in)
+     * @param {Function} successCallback - Success callback
+     * @param {Function} errorCallback - Error callback
+     */
+    setZoomRatio: function(ratio, successCallback, errorCallback) {
+        if (typeof ratio !== 'number' || ratio < 1.0) {
+            if (errorCallback) {
+                errorCallback('Zoom ratio must be a number greater than or equal to 1.0');
+            }
+            return;
+        }
+        
+        exec(successCallback, errorCallback, 'iOSVideoCapture', 'setZoomRatio', [ratio]);
     }
 };
 
