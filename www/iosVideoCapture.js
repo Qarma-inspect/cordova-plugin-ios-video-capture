@@ -47,7 +47,7 @@ var iOSVideoCapture = {
      */
     stopRecording: function(successCallback, errorCallback) {
         exec(function(mediaFile) {
-            successCallback(mediaFile.fullPath);
+            successCallback(mediaFile);
         }, errorCallback, 'iOSVideoCapture', 'stopRecording', []);
     },
     
