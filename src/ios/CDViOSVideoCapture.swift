@@ -564,9 +564,6 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     @objc func handlePinchGesture(_ recognizer: UIPinchGestureRecognizer) {
         guard let videoDevice = self.videoDeviceInput?.device else { return }
         
-        // Make sure zoom is supported
-        guard videoDevice.isRampingZoom == false else { return }
-        
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
             
@@ -574,15 +571,22 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
                 do {
                     try videoDevice.lockForConfiguration()
                     
-                    // Limit zoom factor between min and max
-                    let minAvailableZoom = 1.0
-                    let maxAvailableZoom = videoDevice.activeFormat.videoMaxZoomFactor
-                    let finalZoom = min(maxAvailableZoom, max(minAvailableZoom, scale))
+                    // Get the available zoom range
+                    // Default min is 1.0 (no zoom)
+                    let minAvailableZoom: CGFloat = 1.0
+                    // Limit max zoom to a reasonable level (full device max can be too much)
+                    let maxAvailableZoom = min(videoDevice.activeFormat.videoMaxZoomFactor, 6.0)
                     
-                    // Set the zoom scale
+                    // Calculate the desired zoom factor based on the pinch scale
+                    let desiredZoomFactor = scale
+                    
+                    // Limit the zoom factor to the available range
+                    let finalZoom = min(maxAvailableZoom, max(minAvailableZoom, desiredZoomFactor))
+                    
+                    // Apply the zoom factor to the device with smooth transition
                     videoDevice.videoZoomFactor = finalZoom
                     
-                    // Store the current zoom factor
+                    // Store the current zoom factor for future reference
                     self.currentZoomFactor = finalZoom
                     
                     videoDevice.unlockForConfiguration()
