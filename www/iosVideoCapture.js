@@ -71,6 +71,25 @@ var iOSVideoCapture = {
      */
     stopPreview: function(successCallback, errorCallback) {
         exec(successCallback, errorCallback, 'iOSVideoCapture', 'stopPreview', []);
+    },
+    
+    /**
+     * Set the flash/torch mode for the camera
+     * @param {string} mode - Flash mode ('off', 'on', or 'auto')
+     * @param {Function} successCallback - Success callback
+     * @param {Function} errorCallback - Error callback
+     */
+    setFlashMode: function(mode, successCallback, errorCallback) {
+        // Validate mode parameter
+        const validModes = ['off', 'on', 'auto'];
+        if (typeof mode !== 'string' || !validModes.includes(mode.toLowerCase())) {
+            if (errorCallback) {
+                errorCallback("Invalid flash mode. Must be 'off', 'on', or 'auto'");
+            }
+            return;
+        }
+        
+        exec(successCallback, errorCallback, 'iOSVideoCapture', 'setFlashMode', [mode.toLowerCase()]);
     }
 };
 

@@ -164,6 +164,77 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         self.commandDelegate.send(pluginResult, callbackId: command.callbackId)
     }
     
+    @objc func setFlashMode(_ command: CDVInvokedUrlCommand) {
+        // Extract flash mode parameter
+        guard command.arguments.count > 0,
+              let flashModeString = command.arguments[0] as? String else {
+            sendPluginError("Missing flash mode parameter", for: command)
+            return
+        }
+        
+        // Check if capture session is running
+        guard let videoDevice = self.videoDeviceInput?.device,
+              captureSession != nil,
+              captureSession!.isRunning else {
+            sendPluginError("Camera preview not started. Call startPreview first.", for: command)
+            return
+        }
+        
+        // Convert string mode to AVCaptureDevice modes
+        let (torchMode, flashMode) = convertFlashMode(flashModeString)
+        
+        // Set flash mode on session queue
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            do {
+                // Check if torch/flash is available on this device
+                if !videoDevice.hasTorch && !videoDevice.hasFlash {
+                    DispatchQueue.main.async {
+                        self.sendPluginError("Device does not have flash capability", for: command)
+                    }
+                    return
+                }
+                
+                try videoDevice.lockForConfiguration()
+                
+                // Set torch mode if supported
+                if videoDevice.hasTorch && videoDevice.isTorchModeSupported(torchMode) {
+                    videoDevice.torchMode = torchMode
+                }
+                
+                // Set flash mode if supported
+                if videoDevice.hasFlash && videoDevice.isFlashModeSupported(flashMode) {
+                    videoDevice.flashMode = flashMode
+                }
+                
+                videoDevice.unlockForConfiguration()
+                
+                // Send success response
+                DispatchQueue.main.async {
+                    let pluginResult = CDVPluginResult(status: .ok, messageAs: ["flashMode": flashModeString])
+                    self.commandDelegate.send(pluginResult, callbackId: command.callbackId)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.sendPluginError("Error setting flash mode: \(error.localizedDescription)", for: command)
+                }
+            }
+        }
+    }
+    
+    // Helper to convert string flash mode to AVCaptureDevice torch and flash modes
+    private func convertFlashMode(_ mode: String) -> (AVCaptureDevice.TorchMode, AVCaptureDevice.FlashMode) {
+        switch mode.lowercased() {
+        case "on":
+            return (.on, .on)
+        case "auto":
+            return (.auto, .auto)
+        case "off", _: // Default to off for any unrecognized mode
+            return (.off, .off)
+        }
+    }
+    
     // MARK: - Camera Setup
     
     private func setupCaptureSession() throws {
