@@ -22,6 +22,10 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     private var previewAspectRatio: CGFloat = 3.0/4.0 // Default aspect ratio (9:16 for portrait)
     private var elementId: String?
     
+    // Zoom control
+    private var initialPinchZoom: CGFloat = 1.0
+    private var currentZoomFactor: CGFloat = 1.0
+    
     // Recording state
     private var isRecording: Bool = false
     private var outputFileURL: URL?
@@ -264,6 +268,11 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         // Store reference
         self.previewLayer = previewLayer
         self.previewView = previewView
+        
+        // Add pinch gesture recognizer for zoom control
+        let pinchRecognizer = UIPinchGestureRecognizer(target: self, action: #selector(handlePinchGesture(_:)))
+        previewView.addGestureRecognizer(pinchRecognizer)
+        previewView.isUserInteractionEnabled = true
         
         // If we have an elementId, try to position over that element
         if let elementId = self.elementId {
@@ -548,5 +557,57 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     
     override func onAppTerminate() {
         cleanupCaptureSession()
+    }
+    
+    // MARK: - Zoom Control
+    
+    @objc func handlePinchGesture(_ recognizer: UIPinchGestureRecognizer) {
+        guard let videoDevice = self.videoDeviceInput?.device else { return }
+        
+        // Make sure zoom is supported
+        guard videoDevice.isRampingZoom == false else { return }
+        
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            func update(scale: CGFloat) {
+                do {
+                    try videoDevice.lockForConfiguration()
+                    
+                    // Limit zoom factor between min and max
+                    let minAvailableZoom = 1.0
+                    let maxAvailableZoom = videoDevice.activeFormat.videoMaxZoomFactor
+                    let finalZoom = min(maxAvailableZoom, max(minAvailableZoom, scale))
+                    
+                    // Set the zoom scale
+                    videoDevice.videoZoomFactor = finalZoom
+                    
+                    // Store the current zoom factor
+                    self.currentZoomFactor = finalZoom
+                    
+                    videoDevice.unlockForConfiguration()
+                } catch {
+                    NSLog("Error setting zoom: \(error.localizedDescription)")
+                }
+            }
+            
+            switch recognizer.state {
+            case .began:
+                self.initialPinchZoom = self.currentZoomFactor
+                
+            case .changed:
+                // Calculate new zoom factor based on pinch scale
+                let scale = self.initialPinchZoom * recognizer.scale
+                update(scale: scale)
+                
+            case .ended, .cancelled, .failed:
+                // Final update when gesture ends
+                let scale = self.initialPinchZoom * recognizer.scale
+                update(scale: scale)
+                
+            default:
+                break
+            }
+        }
     }
 }
