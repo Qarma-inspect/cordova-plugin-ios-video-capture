@@ -432,7 +432,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             "localURL": fileURL.absoluteString,
             "name": fileURL.lastPathComponent,
             "size": fileSize.intValue,
-            "type": "video/mp4",
+            "type": "video/quicktime",
             "width": Int(videoWidth),
             "height": Int(videoHeight)
         ]
