@@ -100,7 +100,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         self.recordingCommand = command
         
         // Extract parameters
-        var maxDuration: Double = 60 // Default to 60 seconds if not specified
+        var maxDuration: Double = 12
         var targetFileName: String? = nil
         
         if command.arguments.count > 0, let params = command.arguments[0] as? [String: Any] {
