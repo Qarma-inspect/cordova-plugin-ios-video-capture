@@ -1,6 +1,7 @@
 import AVFoundation
 import UIKit
 import CoreMedia
+import CoreMotion
 import MobileCoreServices
 
 @objc(CDViOSVideoCapture)
@@ -35,10 +36,22 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     // Session queue for camera operations
     private let sessionQueue = DispatchQueue(label: "com.cordova.iosVideoCapture.sessionQueue", qos: .userInitiated)
     
+    // Motion manager for orientation detection
+    private lazy var motionManager: CMMotionManager = {
+        let manager = CMMotionManager()
+        manager.accelerometerUpdateInterval = 0.1
+        return manager
+    }()
+    
     // MARK: - Lifecycle
     
     override func pluginInitialize() {
         super.pluginInitialize()
+        
+        // Start motion updates to continuously monitor device orientation
+        if motionManager.isAccelerometerAvailable {
+            motionManager.startAccelerometerUpdates()
+        }
     }
     
     deinit {
@@ -329,7 +342,6 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         // Set the frame
         previewLayer.frame = CGRect(x: 0, y: yOffset, width: width, height: height)
         
-        // Set orientation
         if let connection = previewLayer.connection, connection.isVideoOrientationSupported {
             connection.videoOrientation = .portrait
         }
@@ -417,9 +429,6 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
                 return
             }
             
-            // Fix for error -11803: Add a small delay to ensure the session is fully running
-//            Thread.sleep(forTimeInterval: 0.5)
-            
             // Create temp file for recording
             let tempDir = NSTemporaryDirectory()
             
@@ -459,7 +468,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             // Ensure connections are properly configured
             if let videoConnection = movieFileOutput.connection(with: .video) {
                 if videoConnection.isVideoOrientationSupported {
-                    videoConnection.videoOrientation = .portrait
+                    videoConnection.videoOrientation = getVideoOrientation()
                 }
                 if videoConnection.isVideoStabilizationSupported {
                     videoConnection.preferredVideoStabilizationMode = .auto
@@ -502,11 +511,17 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             videoHeight = size.height
         }
         
+        // Determine if the video was recorded in landscape mode using accelerometer data
+        let isLandscape = isDevicePhysicallyInLandscape()
+        let orientation = isLandscape ? "landscape" : "portrait"
+        
+        NSLog("Video dimensions: \(videoWidth) x \(videoHeight), detected orientation: \(orientation)")
+        
         // Get file size
         let fileAttributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
         let fileSize = fileAttributes?[.size] as? NSNumber ?? 0
         
-        // Create MediaFile object
+        // Create MediaFile object with orientation information
         let mediaFile: [String: Any] = [
             "fullPath": fileURL.path,
             "localURL": fileURL.absoluteString,
@@ -514,7 +529,9 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             "size": fileSize.intValue,
             "type": "video/mp4",
             "width": Int(videoWidth),
-            "height": Int(videoHeight)
+            "height": Int(videoHeight),
+            "orientation": orientation,
+            "isLandscape": isLandscape
         ]
         
         // Send result back to JavaScript
@@ -610,6 +627,51 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         }
     }
     
+    // MARK: - Device Orientation Detection
+    
+    /// Determines if the device is physically in landscape orientation based on accelerometer data
+    private func isDevicePhysicallyInLandscape() -> Bool {
+        // Check if we can get current accelerometer data
+        guard motionManager.isAccelerometerAvailable else {
+            return false
+        }
+        
+        // Get the current accelerometer data if available
+        if let accelerometerData = motionManager.accelerometerData {
+            let orientation = getOrientationFromAccelerometerData(accelerometerData)
+            return (orientation == .landscapeLeft || orientation == .landscapeRight)
+        }
+        
+        // Default to false if no data is available
+        return false
+    }
+    
+    /// Converts accelerometer data to device orientation
+    private func getOrientationFromAccelerometerData(_ accelerometerData: CMAccelerometerData) -> AVCaptureVideoOrientation {
+        let x = accelerometerData.acceleration.x
+        let y = accelerometerData.acceleration.y
+        
+        // Determine orientation based on gravity vector
+        if abs(y) > abs(x) {
+            // Device is in portrait or portrait upside down
+            return y > 0 ? .portraitUpsideDown : .portrait
+        } else {
+            // Device is in landscape left or landscape right
+            return x > 0 ? .landscapeRight : .landscapeLeft
+        }
+    }
+    
+    /// Returns the appropriate video orientation based on the device's physical orientation
+    private func getVideoOrientation() -> AVCaptureVideoOrientation {
+        // Get the current accelerometer data if available
+        if motionManager.isAccelerometerAvailable, let accelerometerData = motionManager.accelerometerData {
+            return getOrientationFromAccelerometerData(accelerometerData)
+        }
+        
+        // Default to portrait if accelerometer data isn't available
+        return .portrait
+    }
+    
     private func sendPluginError(_ message: String, for command: CDVInvokedUrlCommand? = nil) {
         var cmd = command
         if cmd == nil {
@@ -628,6 +690,11 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     
     override func onAppTerminate() {
         cleanupCaptureSession()
+        
+        // Stop motion updates when app is terminated
+        if motionManager.isAccelerometerActive {
+            motionManager.stopAccelerometerUpdates()
+        }
     }
     
     // MARK: - Zoom Control
