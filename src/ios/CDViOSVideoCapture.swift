@@ -243,7 +243,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         
         // Configure session
         session.beginConfiguration()
-        session.sessionPreset = .high
+        session.sessionPreset = .vga640x480
         
         // Add video input
         guard let videoDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
@@ -319,7 +319,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         
         // Create preview layer
         let previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
-        previewLayer.videoGravity = .resizeAspectFill
+        previewLayer.videoGravity = .resizeAspect
         
         // Calculate dimensions based on aspect ratio
         let width = previewView.bounds.width
