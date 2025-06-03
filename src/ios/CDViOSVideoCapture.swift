@@ -19,7 +19,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     
     // Preview elements
     private var previewView: UIView?
-    private var previewAspectRatio: CGFloat = 3.0/4.0 // Default aspect ratio (9:16 for portrait)
+    private var previewAspectRatio: CGFloat = 3.0/4.0
     private var elementId: String?
     
     // Zoom control
@@ -29,7 +29,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     // Recording state
     private var isRecording: Bool = false
     private var outputFileURL: URL?
-    private var maxRecordDuration: Double = 60 // Default to 60 seconds
+    private var maxRecordDuration: Double = 12
     private var targetFileName: String? // Custom filename for the recorded video
     
     // Session queue for camera operations
