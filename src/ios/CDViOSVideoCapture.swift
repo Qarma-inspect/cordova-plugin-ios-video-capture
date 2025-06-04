@@ -660,7 +660,7 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
             return y > 0 ? .portraitUpsideDown : .portrait
         } else {
             // Device is in landscape left or landscape right
-            return x > 0 ? .landscapeRight : .landscapeLeft
+            return x > 0 ? .landscapeLeft : .landscapeRight
         }
     }
     
