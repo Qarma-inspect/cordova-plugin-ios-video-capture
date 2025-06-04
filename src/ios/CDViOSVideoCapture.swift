@@ -47,11 +47,6 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     
     override func pluginInitialize() {
         super.pluginInitialize()
-        
-        // Start motion updates to continuously monitor device orientation
-        if motionManager.isAccelerometerAvailable {
-            motionManager.startAccelerometerUpdates()
-        }
     }
     
     deinit {
@@ -257,6 +252,10 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         // Configure session
         session.beginConfiguration()
         session.sessionPreset = .vga640x480
+
+        if motionManager.isAccelerometerAvailable {
+            motionManager.startAccelerometerUpdates()
+        }
         
         // Add video input
         guard let videoDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
@@ -611,6 +610,10 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
         if let movieFileOutput = movieFileOutput, movieFileOutput.isRecording {
             movieFileOutput.stopRecording()
         }
+
+        if motionManager.isAccelerometerActive {
+            motionManager.stopAccelerometerUpdates()
+        }
         
         // Stop capture session
         if let captureSession = captureSession, captureSession.isRunning {
@@ -690,11 +693,6 @@ class CDViOSVideoCapture: CDVPlugin, AVCaptureFileOutputRecordingDelegate {
     
     override func onAppTerminate() {
         cleanupCaptureSession()
-        
-        // Stop motion updates when app is terminated
-        if motionManager.isAccelerometerActive {
-            motionManager.stopAccelerometerUpdates()
-        }
     }
     
     // MARK: - Zoom Control
