@@ -1,5 +1,6 @@
 import AVFoundation
 import UIKit
+import WebKit
 import CoreMedia
 import CoreMotion
 import MobileCoreServices
